@@ -49,10 +49,11 @@ if __name__ == "__main__":
             subs.add(chat_id)
             save_subs(subs)
             await update.message.reply_text(
-                "привет! теперь я буду напоминать тебе каждый вечер 🌙\n\n"
-                f"трекер: {TRACKER_URL}\n\n"
-                "/stop — отписаться\n"
-                "/mood — ссылка на трекер"
+                "как дела? настроение как? 🌙\n\n"
+                "теперь каждый вечер я буду напоминать тебе отмечать настроение. "
+                "заходишь на сайт, выбираешь смайлик, и всё — день прожит не зря ☝️\n\n"
+                f"{TRACKER_URL}\n\n"
+                "/stop — отписаться от напоминаний"
             )
 
         async def stop(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -60,7 +61,7 @@ if __name__ == "__main__":
             subs = load_subs()
             subs.discard(chat_id)
             save_subs(subs)
-            await update.message.reply_text("отписал. /start чтобы снова")
+            await update.message.reply_text("ок, отписал. если захочешь снова — /start")
 
         async def mood(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"трекер: {TRACKER_URL}")
