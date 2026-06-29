@@ -1,17 +1,11 @@
 import os
 import json
-import asyncio
-from datetime import time
-from pytz import timezone
+import sys
+from telegram import Bot
 
-from telegram import Update, Bot
-from telegram.ext import Application, CommandHandler, ContextTypes
-
-TOKEN = os.environ.get("BOT_TOKEN")
-SUBS_FILE = "subscribers.json"
+TOKEN = os.environ.get("BOT_TOKEN", "8938255790:AAHzlrwt8Lq1B4WCYCsPoY8LkK-jYxFsn4E")
+SUBS_FILE = os.path.join(os.path.dirname(__file__), "subscribers.json")
 TRACKER_URL = "https://achepurnov.github.io/mood-tracker/"
-
-tz = timezone("Europe/Moscow")
 
 
 def load_subs():
@@ -26,57 +20,54 @@ def save_subs(subs):
         json.dump(list(subs), f)
 
 
-async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+def send_remind():
     subs = load_subs()
-    chat_id = update.effective_chat.id
-    subs.add(chat_id)
-    save_subs(subs)
-    await update.message.reply_text(
-        "привет! теперь я буду напоминать тебе отмечать настроение каждый вечер 🌙\n\n"
-        f"трекер: {TRACKER_URL}\n\n"
-        "/stop — отписаться\n"
-        "/mood — ссылка на трекер"
-    )
-
-
-async def stop(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    subs = load_subs()
-    chat_id = update.effective_chat.id
-    subs.discard(chat_id)
-    save_subs(subs)
-    await update.message.reply_text("отписал. если захочешь снова — /start")
-
-
-async def mood(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"трекер настроения: {TRACKER_URL}")
-
-
-async def daily_remind(app: Application):
-    subs = load_subs()
-    bot = app.bot
+    bot = Bot(TOKEN)
     for chat_id in subs:
         try:
-            await bot.send_message(
+            bot.send_message(
                 chat_id,
                 "как дела? не забудь отметить настроение 🌙\n"
                 f"{TRACKER_URL}"
             )
         except Exception:
             pass
-
-
-def main():
-    app = Application.builder().token(TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("stop", stop))
-    app.add_handler(CommandHandler("mood", mood))
-
-    if os.environ.get("DAILY_REMIND") == "1":
-        app.job_queue.run_daily(daily_remind, time(21, 0, tzinfo=tz))
-
-    app.run_polling()
+    print(f"reminded {len(subs)} subscribers")
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == "remind":
+        send_remind()
+    else:
+        # interactive mode — polling for commands
+        from telegram import Update
+        from telegram.ext import Application, CommandHandler, ContextTypes
+
+        async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+            chat_id = update.effective_chat.id
+            subs = load_subs()
+            subs.add(chat_id)
+            save_subs(subs)
+            await update.message.reply_text(
+                "привет! теперь я буду напоминать тебе каждый вечер 🌙\n\n"
+                f"трекер: {TRACKER_URL}\n\n"
+                "/stop — отписаться\n"
+                "/mood — ссылка на трекер"
+            )
+
+        async def stop(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+            chat_id = update.effective_chat.id
+            subs = load_subs()
+            subs.discard(chat_id)
+            save_subs(subs)
+            await update.message.reply_text("отписал. /start чтобы снова")
+
+        async def mood(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+            await update.message.reply_text(f"трекер: {TRACKER_URL}")
+
+        app = Application.builder().token(TOKEN).build()
+        app.add_handler(CommandHandler("start", start))
+        app.add_handler(CommandHandler("stop", stop))
+        app.add_handler(CommandHandler("mood", mood))
+        print("bot polling...")
+        app.run_polling()
